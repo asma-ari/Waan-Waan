@@ -1,18 +1,19 @@
 """
 app.py
-แอป Daily Habit Tracker
-- ปฏิทินแบบตาราง (Grid) พร้อมพรีวิวข้อมูลในแต่ละวัน
-- คลิกที่วันนั้นๆ แล้วเด้ง Popup Dialog กลางหน้าจอเพื่อดู/เพิ่ม/ลบ บันทึกและกิจกรรม
+แอป Waan-Waan Habit Tracker
+- ใช้ FullCalendar สวยงามแบบภาพตัวอย่าง (มีปุ่ม month/week/list)
+- แก้ไขปัญหาคลิกวันที่แล้ววันเคลื่อน (Timezone Fix)
+- คลิกวันที่แล้วเด้ง Popup Dialog กลางจอให้พิมพ์บันทึก / ลบบันทึก
 """
 
-from datetime import date, timedelta
-import calendar
+from datetime import date, datetime, timedelta
 import streamlit as st
+from streamlit_calendar import calendar
 
 import db
 from schedule_utils import is_due, upcoming_due_dates, thai_weekday
 
-st.set_page_config(page_title="🌸 Daily Habit Tracker", page_icon="🌸", layout="centered")
+st.set_page_config(page_title="🌸 Waan-Waan Habit Tracker", page_icon="🌸", layout="centered")
 
 db.init_db()
 
@@ -33,23 +34,14 @@ st.markdown(
 )
 
 st.title("🌸 Daily Habit Tracker")
-st.caption("ปฏิทินบันทึกประจำวัน + กิจกรรมวนซ้ำ N วัน ✨")
+st.caption("ปฏิทินบันทึกประจำวัน + กิจกรรมวนซ้ำทุก N วัน ✨")
 
 today = date.today()
 
-# จัดการ Session State สำหรับเปลี่ยนเดือนในปฏิทินตาราง
-if "cal_year" not in st.session_state:
-    st.session_state.cal_year = today.year
-if "cal_year" not in st.session_state:
-    st.session_state.cal_year = today.year
-if "cal_month" not in st.session_state:
-    st.session_state.cal_month = today.month
-
-
 # -------------------------------------------------------------
-# 🪟 POPUP DIALOG: หน้าต่างเด้งกลางจอเมื่อคลิกวันที่
+# 🪟 POPUP DIALOG: เด้งขึ้นมากลางจอเมื่อคลิกเลือกวันที่
 # -------------------------------------------------------------
-@st.dialog("📝 จัดการบันทึกและกิจกรรม")
+@st.dialog("📝 บันทึกกิจกรรมประจำวัน")
 def open_entry_dialog(selected_d: date):
     st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
     
@@ -58,7 +50,7 @@ def open_entry_dialog(selected_d: date):
 
     # 1. เช็ค/ติ๊กกิจกรรมที่ต้องทำในวันนั้น
     if due_on_selected:
-        st.markdown("✨ **กิจกรรมในวันนี้:**")
+        st.markdown("✨ **กิจกรรมที่ต้องทำวันนี้:**")
         for h in due_on_selected:
             done = db.is_done_today(h["id"], selected_d)
             col1, col2 = st.columns([3, 1])
@@ -104,108 +96,77 @@ def open_entry_dialog(selected_d: date):
                         h_name = f"{h['emoji']} {h['name']}"
                 st.markdown(f"✅ ทำสำเร็จ: {h_name}")
         with c_log2:
-            # ปุ่มลบ
+            # ปุ่มลบบันทึก
             if st.button("🗑️", key=f"del_log_btn_{log['id']}"):
                 db.delete_log(log["id"])
                 st.rerun()
 
 
 # -------------------------------------------------------------
-# 📌 TABS หลัก
+# 📌 MAIN TABS
 # -------------------------------------------------------------
 tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 กิจกรรมวนซ้ำ"])
 habits = db.get_habits()
 
-# ================= TAB 1: ปฏิทินตาราง Grid =================
+# ================= TAB 1: ปฏิทิน (FullCalendar แบบในรูป) =================
 with tab_calendar:
-    # ปุ่มเปลี่ยนเดือน
-    col_prev, col_title, col_next = st.columns([1, 3, 1])
-    with col_prev:
-        if st.button("◀ เดือนก่อน"):
-            if st.session_state.cal_month == 1:
-                st.session_state.cal_month = 12
-                st.session_state.cal_year -= 1
-            else:
-                st.session_state.cal_month -= 1
-            st.rerun()
-    with col_title:
-        thai_months = [
-            "", "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-        ]
-        st.markdown(f"<h3 style='text-align: center;'>{thai_months[st.session_state.cal_month]} {st.session_state.cal_year + 543}</h3>", unsafe_allow_html=True)
-    with col_next:
-        if st.button("เดือนถัดไป ▶"):
-            if st.session_state.cal_month == 12:
-                st.session_state.cal_month = 1
-                st.session_state.cal_year += 1
-            else:
-                st.session_state.cal_month += 1
-            st.rerun()
-
-    st.markdown("---")
-
-    # ดึงข้อมูล Log และ Habit ทั้งหมดของเดือนนี้มาเตรียมไว้แสดงผลในช่องปฏิทิน
-    month_logs = db.get_logs_for_month(st.session_state.cal_year, st.session_state.cal_month)
+    events = []
+    start_search = today - timedelta(days=90)
     
-    # สร้างโครงสร้างปฏิทินตาราง (เริ่มวันจันทร์)
-    cal = calendar.Calendar(firstweekday=0)
-    month_days = cal.monthdayscalendar(st.session_state.cal_year, st.session_state.cal_month)
+    # 1. ดึง "กิจกรรมวนซ้ำ" มาใส่ปฏิทิน
+    for h in habits:
+        start_d = date.fromisoformat(h["start_date"])
+        due_dates = upcoming_due_dates(start_d, h["interval_days"], start_search, count=60)
+        for d in due_dates:
+            if start_search <= d <= today + timedelta(days=90):
+                events.append({
+                    "title": f"{h['emoji']} {h['name']}",
+                    "start": d.isoformat(),
+                    "end": d.isoformat(),
+                    "allDay": True,
+                    "backgroundColor": "#ff9eb5" if d == today else "#6b4c8a",
+                    "borderColor": "#ff9eb5" if d == today else "#6b4c8a"
+                })
 
-    # หัวตารางวันในสัปดาห์
-    weekdays_header = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."]
-    cols = st.columns(7)
-    for idx, day_name in enumerate(weekdays_header):
-        cols[idx].markdown(f"<div style='text-align: center; font-weight: bold; color: #6b4c8a;'>{day_name}</div>", unsafe_allow_html=True)
+    # 2. ดึง "ข้อความบันทึก" มาแสดงสั้นๆ บนช่องปฏิทิน (แถบสีฟ้า)
+    all_logs = db.get_all_logs(limit=500)
+    for log in all_logs:
+        if log["note"]:
+            short_note = log["note"] if len(log["note"]) <= 12 else log["note"][:12] + "..."
+            events.append({
+                "title": f"📝 {short_note}",
+                "start": log["log_date"],
+                "end": log["log_date"],
+                "allDay": True,
+                "backgroundColor": "#70a1ff",
+                "borderColor": "#70a1ff"
+            })
 
-    st.markdown("<br>", unsafe_allow_html=True)
+    # คอนฟิกปฏิทินให้ปุ่มเหมือนภาพต้นฉบับเป๊ะๆ
+    calendar_options = {
+        "headerToolbar": {
+            "left": "today prev,next",
+            "center": "title",
+            "right": "dayGridMonth,timeGridWeek,listMonth"
+        },
+        "initialView": "dayGridMonth",
+        "selectable": True,
+        "timeZone": "local",
+    }
 
-    # วาดตารางวัน
-    for week in month_days:
-        cols = st.columns(7)
-        for idx, day in enumerate(week):
-            with cols[idx]:
-                if day == 0:
-                    st.markdown("<div style='padding: 20px;'></div>", unsafe_allow_html=True)
-                else:
-                    current_date_obj = date(st.session_state.cal_year, st.session_state.cal_month, day)
-                    date_str = current_date_obj.isoformat()
-                    
-                    # เช็คข้อมูลในวันนี้
-                    is_today = (current_date_obj == today)
-                    
-                    # หากิจกรรมที่ต้องทำวันนี้
-                    due_today_list = [h for h in habits if is_due(date.fromisoformat(h["start_date"]), h["interval_days"], current_date_obj)]
-                    
-                    # หาโน้ตหรือบันทึกในวันนี้
-                    logs_today = [l for l in month_logs if l["log_date"] == date_str]
-                    
-                    # ตกแต่งปุ่มเลือกวัน
-                    btn_label = f"{day}"
-                    if is_today:
-                        btn_label = f"📌 {day} (วันนี้)"
-                    
-                    # ปุ่มคลิกวันที่เพื่อเปิด Popup
-                    if st.button(btn_label, key=f"grid_day_{date_str}", use_container_width=True):
-                        open_entry_dialog(current_date_obj)
+    # แสดงปฏิทิน
+    cal_res = calendar(events=events, options=calendar_options, callbacks=["dateClick"], key="waan_fullcalendar")
 
-                    # แสดงพรีวิวข้อมูลเล็กๆ ใต้ปุ่มในช่องปฏิทิน
-                    preview_html = "<div style='font-size: 11px; min-height: 40px; background: rgba(255,255,255,0.7); border-radius: 6px; padding: 2px 4px; margin-top: 2px;'>"
-                    
-                    # แสดงไอคอนกิจกรรม
-                    for h in due_today_list:
-                        done = db.is_done_today(h["id"], current_date_obj)
-                        check_mark = "✅" if done else "⏳"
-                        preview_html += f"<div>{check_mark} {h['emoji']} {h['name']}</div>"
-                    
-                    # แสดงโน้ตย่อ
-                    for l in logs_today:
-                        if l["note"]:
-                            short_note = l["note"] if len(l["note"]) <= 10 else l["note"][:10] + "..."
-                            preview_html += f"<div style='color: #0984e3;'>📝 {short_note}</div>"
-                    
-                    preview_html += "</div>"
-                    st.markdown(preview_html, unsafe_allow_html=True)
+    # เมื่อมีการคลิกวันที่ -> แปลงค่าวันที่ให้ตรงกับ Timezone เพื่อไม่ให้เคลื่อน
+    if cal_res and "dateClick" in cal_res:
+        raw_date_str = cal_res["dateClick"]["date"]
+        
+        # ถ้าระบบส่งเวลามาเป็น String ให้ดึงเอาเฉพาะสัปดาห์/ปี/เดือน/วัน มาแปลงตรงๆ ป้องกัน Timezone เพี้ยน
+        date_part = raw_date_str.split("T")[0]
+        selected_date = date.fromisoformat(date_part)
+        
+        # เปิด Popup Dialog
+        open_entry_dialog(selected_date)
 
 
 # ================= TAB 2: กิจกรรมวนซ้ำ =================
