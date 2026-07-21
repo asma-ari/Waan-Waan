@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ป๊อปอัพปิดอัตโนมัติหลังบันทึก + โค้ดคลีนโหลดไว)
+แอป Daily Habit Tracker (โค้ดเต็ม ป๊อปอัปปิดอัตโนมัติเมื่อบันทึก)
 """
 
 from datetime import date, datetime, timedelta
@@ -119,7 +119,7 @@ with col_logout:
 
 today = date.today()
 
-# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (กดบันทึกแล้วปิดป๊อปอัปทันที)
+# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (ครอบด้วย form เพื่อปิดป๊อปอัปอัตโนมัติเมื่อกดบันทึก)
 @st.dialog("📝 บันทึกกิจกรรมประจำวัน")
 def open_entry_dialog(selected_d: date):
     st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
@@ -147,15 +147,17 @@ def open_entry_dialog(selected_d: date):
                     st.caption("เรียบร้อย")
         st.divider()
 
-    st.markdown("✍️ **พิมพ์เรื่องราว/ไดอารี่วันนี้:**")
-    note_input = st.text_area("วันนี้มีอะไรเกิดขึ้นบ้าง เล่าให้ฟังหน่อย...", height=100, key=f"note_area_{selected_d}")
-    
-    if st.button("💾 บันทึกเรื่องราว", use_container_width=True, key=f"save_btn_{selected_d}"):
-        if note_input.strip():
-            db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
-            st.rerun() # บันทึกเสร็จ st.rerun() จะปิดป๊อปอัปและรีเฟรชหน้าจอหลักให้ทันที
-        else:
-            st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
+    with st.form(key=f"diary_form_{selected_d}", clear_on_submit=True):
+        st.markdown("✍️ **พิมพ์เรื่องราว/ไดอารี่วันนี้:**")
+        note_input = st.text_area("วันนี้มีอะไรเกิดขึ้นบ้าง เล่าให้ฟังหน่อย...", height=100)
+        
+        save_diary = st.form_submit_button("💾 บันทึกเรื่องราว", use_container_width=True)
+        if save_diary:
+            if note_input.strip():
+                db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
+                st.rerun()
+            else:
+                st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
 
     st.divider()
     st.markdown("📖 **บันทึกย้อนหลังของวันนี้:**")
@@ -179,7 +181,7 @@ def open_entry_dialog(selected_d: date):
                 st.rerun()
 
 
-# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม (กดบันทึกการแก้ไขแล้วปิดป๊อปอัปทันที)
+# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม
 @st.dialog("✏️ แก้ไขกิจกรรม")
 def open_edit_habit_dialog(habit):
     st.markdown(f"### แก้ไขกิจกรรม: **{habit['emoji']} {habit['name']}**")
@@ -218,7 +220,7 @@ def open_edit_habit_dialog(habit):
                 else:
                     db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
                 
-                st.rerun() # บันทึกเสร็จ st.rerun() จะปิดป๊อปอัปนี้ทันที
+                st.rerun()
             else:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
 
@@ -298,7 +300,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v24"
+        key="waan_fullcalendar_v25"
     )
 
     st.divider()
@@ -432,7 +434,7 @@ with tab_habits:
             btn1, btn2 = st.columns(2)
             with btn1:
                 if st.button("✏️ แก้ไข", key=f"edit_h_{h['id']}", use_container_width=True):
-                    open_edit_habit_dialog(h) # เปิดป๊อปอัปแก้ไขทันทีเมื่อคลิก
+                    open_edit_habit_dialog(h)
             with btn2:
                 if st.button("🗑️ ลบ", key=f"del_h_{h['id']}", use_container_width=True):
                     db.delete_habit(h["id"], user_id)
