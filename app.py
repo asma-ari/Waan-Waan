@@ -2,7 +2,7 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- ใต้ปฏิทินมีแถบกิจกรรมที่ต้องทำวันนี้ (ทำแล้วหายไป บันทึกลงปฏิทิน)
+- ใต้ปฏิทินมีแถบกิจกรรมที่ต้องทำวันนี้ ใช้ Checkbox ติ๊กถูกแล้วหายไปขึ้นบนปฏิทินแทน
 - ปุ่มแก้ไขและลบในกิจกรรมวนซ้ำอยู่ชิดติดกัน
 """
 
@@ -23,7 +23,7 @@ st.markdown(
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     .todo-card {
-        background: white; padding: 12px 16px; border-radius: 12px;
+        background: white; padding: 8px 16px; border-radius: 12px;
         margin-bottom: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05);
         border-left: 5px solid #ff9eb5;
     }
@@ -168,7 +168,6 @@ with tab_calendar:
         start_d = date.fromisoformat(h["start_date"])
         due_dates = upcoming_due_dates(start_d, h["interval_days"], start_search, count=60)
         for d in due_dates:
-            # ถ้าเป็นวันที่ย้อนหลังหรือวันนี้ และยังไม่ได้ทำ ให้แสดงเป็นสัญลักษณ์รอทำ
             if not db.is_done_today(h["id"], d) and d >= today:
                 events.append({
                     "title": f"⏳ {h['emoji']} {h['name']}",
@@ -195,16 +194,15 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v5"
+        key="waan_fullcalendar_v6"
     )
 
     # ---------------------------------------------------------
-    # 📌 แถบกิจกรรมที่ต้องทำวันนี้ (อยู่ใต้ปฏิทิน)
+    # 📌 แถบกิจกรรมที่ต้องทำวันนี้ (ใช้ CHECKBOX ติ๊กถูกในแถบเลย)
     # ---------------------------------------------------------
     st.divider()
     st.subheader(f"📌 กิจกรรมที่ต้องทำวันนี้ ({thai_weekday(today)}ที่ {today.strftime('%d/%m/%Y')})")
     
-    # กรองเฉพาะกิจกรรมที่วนซ้ำมาตกวันนี้ และยังไม่ได้ทำ
     due_today_not_done = [
         h for h in habits 
         if is_due(date.fromisoformat(h["start_date"]), h["interval_days"], today) 
@@ -215,18 +213,19 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            c1, c2 = st.columns([4, 1])
-            with c1:
-                st.markdown(
-                    f"<div class='todo-card'>"
-                    f"<b>{h['emoji']} {h['name']}</b> (วนซ้ำทุก {h['interval_days']} วัน)</div>",
-                    unsafe_allow_html=True,
+            # ใช้ st.checkbox ซ้อนในคอนเทนเนอร์การ์ด
+            with st.container():
+                st.markdown("<div class='todo-card'>", unsafe_allow_html=True)
+                is_checked = st.checkbox(
+                    f"**{h['emoji']} {h['name']}** *(วนซ้ำทุก {h['interval_days']} วัน)*",
+                    key=f"chk_todo_{h['id']}"
                 )
-            with c2:
-                if st.button("ทำแล้ว ✔️", key=f"todo_done_{h['id']}", use_container_width=True):
-                    # บันทึกสถานะว่าทำแล้ว
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # ถ้าถูกติ๊ก -> บันทึกและรีโหลดเพื่อย้ายไปแสดงบนปฏิทิน
+                if is_checked:
                     db.add_log(h["id"], today, note=None, completed=True)
-                    st.rerun() # รีโหลด หน้า แถบจะหายไป แล้วไปขึ้นในปฏิทินแทน!
+                    st.rerun()
 
     # ตรวจจับคลิกวันที่
     clicked_date_str = None
@@ -275,7 +274,6 @@ with tab_habits:
         upcoming = upcoming_due_dates(start_d, h["interval_days"], today, count=4)
         upcoming_str = ", ".join(f"{thai_weekday(d)[:2]} {d.strftime('%d/%m')}" for d in upcoming)
         
-        # ปรับเลย์เอาต์ปุ่ม ✏️ แก้ไข และ 🗑️ ลบ ให้อยู่ชิดติดกัน
         col_info, col_btns = st.columns([3, 2])
         with col_info:
             st.markdown(
