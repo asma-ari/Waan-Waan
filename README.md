@@ -2,7 +2,7 @@
 
 > **"สร้างนิสัยที่ดีและบันทึกความทรงจำในทุกๆ วัน ด้วยแอปปฏิทินพาสเทลสุดละมุน"**
 
-👉 **[คลิกที่นี่เพื่อทดลองใช้งานแอปพลิเคชัน (Live Demo)](https://waan-waan-kgjg6irz6mbz2psyxfujdr.streamlit.app/)** 🚀
+👉 **[คลิกที่นี่เพื่อทดลองใช้งานแอปพลิเคชัน (Live Demo)](https://axdkrypvhjqyd5fcjqqpxy.streamlit.app/)** 🚀
 
 ---
 
