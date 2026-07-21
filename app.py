@@ -2,7 +2,7 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- ใต้ปฏิทินมีแถบสี่เหลี่ยมผืนผ้าสีเทาอ่อนขนาดใหญ่ พร้อมช่องติ๊กถูกและข้อความอยู่ด้านในแถบ
+- ใต้ปฏิทินมีแถบสี่เหลี่ยมผืนผ้าสีเทาอ่อน โดยมี Checkbox + ข้อความอยู่ข้างในแถบอย่างถูกต้อง
 - ปุ่มแก้ไขและลบในกิจกรรมวนซ้ำอยู่ชิดติดกัน
 """
 
@@ -17,24 +17,24 @@ st.set_page_config(page_title="🌸 Daily Habit Tracker", page_icon="🌸", layo
 
 db.init_db()
 
-# ---------- Cute custom styling ----------
+# ---------- Custom Styling ----------
 st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     
-    /* สไตล์แถบสี่เหลี่ยมผืนผ้าขนาดใหญ่ สีเทาอ่อนสบายตา */
-    .gray-banner-card {
-        background-color: #f1f3f5; /* สีเทาอ่อนพาสเทลนุ่มๆ */
-        border: 1.5px solid #e9ecef;
-        border-radius: 16px;
-        padding: 16px 24px; /* เพิ่มพื้นที่ให้แถบดูใหญ่โปร่งสบาย */
-        margin-bottom: 14px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    /* ตกแต่ง Container ให้กลายเป็นกล่องแถบสี่เหลี่ยมผืนผ้าสีเทาอ่อน */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: #f1f3f5 !important;
+        border: 1.5px solid #e9ecef !important;
+        border-radius: 16px !important;
+        padding: 10px 18px !important;
+        margin-bottom: 12px !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
     }
     
-    /* ปรับขนาดข้อความและ Checkbox ในแถบให้ใหญ่และชัดเจน */
-    .gray-banner-card .stCheckbox label p {
+    /* ขนาดข้อความ Checkbox ในแถบ */
+    div[data-testid="stVerticalBlockBorderWrapper"] .stCheckbox label p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
         color: #343a40 !important;
@@ -207,11 +207,11 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v10"
+        key="waan_fullcalendar_v11"
     )
 
     # ---------------------------------------------------------
-    # 📌 แถบสี่เหลี่ยมสีเทาอ่อนขนาดใหญ่ พร้อมช่องติ๊กถูกด้านใน
+    # 📌 แถบกิจกรรมรูปทรงกล่องสีเทาอ่อน มี Checkbox อยู่ด้านใน
     # ---------------------------------------------------------
     st.divider()
     st.subheader(f"📌 กิจกรรมที่ต้องทำวันนี้ ({thai_weekday(today)}ที่ {today.strftime('%d/%m/%Y')})")
@@ -226,18 +226,15 @@ with tab_calendar:
         st.info("🎉 วันนี้ไม่มีกิจกรรมค้างแล้ว! พักผ่อนได้เลย 🛋️")
     else:
         for h in due_today_not_done:
-            # ครอบด้วยแถบสี่เหลี่ยมสีเทาอ่อนขนาดใหญ่
-            st.markdown("<div class='gray-banner-card'>", unsafe_allow_html=True)
-            is_checked = st.checkbox(
-                f"{h['emoji']} **{h['name']}** *(ทำทุกๆ {h['interval_days']} วัน)*",
-                key=f"chk_todo_{h['id']}"
-            )
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            # เมื่อกดติ๊กถูก -> บันทึกและรีโหลดเพื่อย้ายไปแสดงบนปฏิทิน
-            if is_checked:
-                db.add_log(h["id"], today, note=None, completed=True)
-                st.rerun()
+            # ใช้ st.container(border=True) เพื่อดึง Checkbox เข้าไปอยู่ในกล่องสี่เหลี่ยมสีเทา
+            with st.container(border=True):
+                is_checked = st.checkbox(
+                    f"{h['emoji']} **{h['name']}** *(ทำทุกๆ {h['interval_days']} วัน)*",
+                    key=f"chk_todo_{h['id']}"
+                )
+                if is_checked:
+                    db.add_log(h["id"], today, note=None, completed=True)
+                    st.rerun()
 
     # ตรวจจับคลิกวันที่
     clicked_date_str = None
