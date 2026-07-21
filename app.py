@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (ระบบ Multi-user / Login แบบ Pop-up Dialog)
+แอป Daily Habit Tracker (ระบบ Multi-user / Login แบบ Pop-up Dialog ปิดอัตโนมัติเมื่อสำเร็จ)
 """
 
 from datetime import date, datetime, timedelta
@@ -63,8 +63,8 @@ def open_login_dialog():
                 user = db.login_user(username, password)
                 if user:
                     st.session_state.user = user
-                    st.success(f"ยินดีต้อนรับกลับมา {username}! 🎉")
-                    st.rerun()
+                    st.toast(f"ยินดีต้อนรับกลับมา {username}! 🎉", icon="✨")
+                    st.rerun()  # ทำการ Rerun เพื่อปิดป๊อปอัปและเข้าสู่หน้าจอหลักทันที
                 else:
                     st.error("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง")
             else:
@@ -86,7 +86,10 @@ def open_signup_dialog():
                 else:
                     success, msg = db.register_user(new_username, new_password)
                     if success:
-                        st.success("สมัครสมาชิกสำเร็จแล้ว! สามารถกดเข้าสู่ระบบได้เลย")
+                        # สมัครสำเร็จ -> ล็อกอินและเข้าใช้งานทันที ป๊อปอัปจะปิดให้อัตโนมัติ
+                        st.session_state.user = db.login_user(new_username, new_password)
+                        st.toast("สมัครสมาชิกและเข้าสู่ระบบสำเร็จแล้ว! 🎉", icon="✨")
+                        st.rerun()
                     else:
                         st.error(msg)
             else:
@@ -183,7 +186,6 @@ def open_entry_dialog(selected_d: date):
     if st.button("💾 บันทึกเรื่องราว", use_container_width=True, key=f"save_btn_{selected_d}"):
         if note_input.strip():
             db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
-            st.success("บันทึกเรียบร้อย!")
             st.rerun()
         else:
             st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
@@ -252,7 +254,6 @@ def open_edit_habit_dialog(habit):
                     db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
                 
                 st.session_state.editing_habit_id = None
-                st.success("แก้ไขกิจกรรมเรียบร้อยแล้ว!")
                 st.rerun()
             else:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
