@@ -2,7 +2,7 @@
 app.py
 แอป Waan-Waan Habit Tracker
 - ใช้ FullCalendar สวยงาม
-- แก้ไขปัญหาวันที่เคลื่อน (กด 21 ได้ 20) ด้วยการดึง dateStr ตรงๆ
+- ล็อก timeZone เป็น "UTC" เพื่อแก้ปัญหาวันที่เพี้ยน/ย้อนหลัง 1 วัน อย่างเด็ดขาด
 - คลิกวันที่แล้วเด้ง Popup Dialog กลางจอเพื่อบันทึก/ลบ
 """
 
@@ -142,6 +142,7 @@ with tab_calendar:
                 "borderColor": "#70a1ff"
             })
 
+    # คอนฟิกปฏิทิน
     calendar_options = {
         "headerToolbar": {
             "left": "today prev,next",
@@ -150,24 +151,29 @@ with tab_calendar:
         },
         "initialView": "dayGridMonth",
         "selectable": True,
+        "timeZone": "UTC",  # <--- ตั้งเป็น UTC เพื่อป้องกันเบราว์เซอร์เลื่อนวัน
     }
 
     # แสดงปฏิทิน
-    cal_res = calendar(events=events, options=calendar_options, callbacks=["dateClick"], key="waan_fullcalendar")
+    cal_res = calendar(events=events, options=calendar_options, callbacks=["dateClick"], key="waan_fullcalendar_utc")
 
-    # ================= แก้จุดนี้: ดึงค่าวันที่โดยตรงแบบไม่แปลงผ่าน Timezone =================
+    # ================= ดึงค่าวันที่จาก dateStr โดยตรง =================
     if cal_res and "dateClick" in cal_res:
-        date_click_data = cal_res["dateClick"]
+        click_info = cal_res["dateClick"]
         
-        # ลองดึงจาก dateStr ก่อน ถ้าไม่มีให้ใช้ date
-        raw_str = date_click_data.get("dateStr") or date_click_data.get("date") or ""
-        
-        # ดึงเฉพาะตัวเลข YYYY-MM-DD (เช่น "2026-07-21")
-        clean_date_str = raw_str.split("T")[0]
-        
-        if clean_date_str:
-            selected_date = date.fromisoformat(clean_date_str)
-            open_entry_dialog(selected_date)
+        # ดึง dateStr ตรงๆ (เช่น "2026-07-21")
+        date_str = click_info.get("dateStr", "")
+        if "T" in date_str:
+            date_str = date_str.split("T")[0]
+        elif " " in date_str:
+            date_str = date_str.split(" ")[0]
+
+        if date_str:
+            try:
+                selected_date = date.fromisoformat(date_str)
+                open_entry_dialog(selected_date)
+            except ValueError:
+                pass
 
 
 # ================= TAB 2: กิจกรรมวนซ้ำ =================
