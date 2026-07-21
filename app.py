@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (โค้ดเต็ม ป๊อปอัปปิดอัตโนมัติเมื่อบันทึก)
+แอป Daily Habit Tracker (แก้ปัญหาป๊อปอัพไดอารี่ไม่ปิดหลังบันทึก)
 """
 
 from datetime import date, datetime, timedelta
@@ -17,6 +17,9 @@ db.init_db()
 # --- Session States ---
 if "user" not in st.session_state:
     st.session_state.user = None
+
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = None
 
 # -------------------------------------------------------------
 # 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
@@ -119,7 +122,7 @@ with col_logout:
 
 today = date.today()
 
-# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (ครอบด้วย form เพื่อปิดป๊อปอัปอัตโนมัติเมื่อกดบันทึก)
+# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (จัดการปิดด้วยการเคลียร์ state)
 @st.dialog("📝 บันทึกกิจกรรมประจำวัน")
 def open_entry_dialog(selected_d: date):
     st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
@@ -155,6 +158,7 @@ def open_entry_dialog(selected_d: date):
         if save_diary:
             if note_input.strip():
                 db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
+                st.session_state.selected_date = None  # เคลียร์ค่าเพื่อปิดป๊อปอัป
                 st.rerun()
             else:
                 st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
@@ -220,6 +224,7 @@ def open_edit_habit_dialog(habit):
                 else:
                     db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
                 
+                st.session_state.selected_date = None # เคลียร์ค่าเพื่อปิดป๊อปอัป
                 st.rerun()
             else:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
@@ -300,7 +305,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v25"
+        key="waan_fullcalendar_v26"
     )
 
     st.divider()
@@ -350,10 +355,13 @@ with tab_calendar:
     if clicked_date_str:
         clean_str = str(clicked_date_str).split("T")[0].split(" ")[0]
         try:
-            selected_date = date.fromisoformat(clean_str)
-            open_entry_dialog(selected_date)
+            st.session_state.selected_date = date.fromisoformat(clean_str)
         except ValueError:
             pass
+
+    # เปิด Dialog ตามค่า Session State
+    if st.session_state.selected_date:
+        open_entry_dialog(st.session_state.selected_date)
 
 
 # ================= TAB 2: ตั้งค่ากิจกรรม =================
