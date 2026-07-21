@@ -93,37 +93,10 @@ def add_log(habit_id, log_date: date, note: str, completed: bool):
 def get_logs_for_date(log_date: date):
     conn = get_connection()
     rows = conn.execute(
-        "SELECT logs.*, habits.name AS habit_name, habits.emoji AS habit_emoji "
-        "FROM logs LEFT JOIN habits ON logs.habit_id = habits.id "
-        "WHERE logs.log_date = ? ORDER BY logs.id DESC",
-        (log_date.isoformat(),),
+        "SELECT * FROM logs WHERE log_date = ? ORDER BY id DESC", (log_date.isoformat(),)
     ).fetchall()
     conn.close()
     return rows
-
-
-def get_logs_for_month(year: int, month: int):
-    """ดึงบันทึกทั้งหมดในเดือนนั้นๆ (ใช้แสดงจุดสรุปในช่องปฏิทินแต่ละวัน)"""
-    start = date(year, month, 1)
-    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
-    conn = get_connection()
-    rows = conn.execute(
-        "SELECT logs.*, habits.name AS habit_name, habits.emoji AS habit_emoji "
-        "FROM logs LEFT JOIN habits ON logs.habit_id = habits.id "
-        "WHERE logs.log_date >= ? AND logs.log_date < ? "
-        "ORDER BY logs.log_date, logs.id",
-        (start.isoformat(), end.isoformat()),
-    ).fetchall()
-    conn.close()
-    return rows
-
-
-def delete_log(log_id: int):
-    """ลบบันทึกหนึ่งรายการ (ใช้ตอนบันทึกผิดวันแล้วอยากลบทิ้ง)"""
-    conn = get_connection()
-    conn.execute("DELETE FROM logs WHERE id = ?", (log_id,))
-    conn.commit()
-    conn.close()
 
 
 def get_all_logs(limit: int = 100):
@@ -146,3 +119,10 @@ def is_done_today(habit_id: int, log_date: date) -> bool:
     ).fetchone()
     conn.close()
     return row is not None
+
+
+def delete_log(log_id: int):
+    conn = get_connection()
+    conn.execute("DELETE FROM logs WHERE id = ?", (log_id,))
+    conn.commit()
+    conn.close()
