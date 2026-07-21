@@ -127,3 +127,13 @@ def delete_log(log_id: int):
     conn.commit()
     conn.close()
     
+def get_logs_for_month(year: int, month: int):
+    conn = get_connection()
+    # สร้างรูปแบบวันที่ เช่น '2026-07-%' เพื่อดึงข้อมูลเฉพาะเดือนนั้น
+    month_str = f"{year:04d}-{month:02d}-%"
+    rows = conn.execute(
+        "SELECT * FROM logs WHERE log_date LIKE ? ORDER BY id DESC",
+        (month_str,)
+    ).fetchall()
+    conn.close()
+    return rows
