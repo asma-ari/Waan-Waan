@@ -21,19 +21,30 @@ if "user" not in st.session_state:
 if "editing_habit_id" not in st.session_state:
     st.session_state.editing_habit_id = None
 
-# ---------- Custom Styling (เคลียร์กรอบแดงกวนใจ) ----------
+# ---------- Custom Styling (เคลียร์กรอบแดง/ขอบส้มเวลาคลิกทั้งหมด) ----------
 st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(180deg, #fff5f7 0%, #f3f0ff 100%); }
     
+    /* บังคับลบกรอบสีแดง/ส้ม และเงาเดิมของเบราว์เซอร์ออกทั้งหมด แล้วเปลี่ยนเป็นสีม่วงพาสเทล */
+    input:focus, textarea:focus, select:focus, 
+    input:active, textarea:active, select:active {
+        border-color: #b19cd9 !important;
+        box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.3) !important;
+        outline: none !important;
+    }
+
+    /* ช่องกรอกข้อมูลปกติ */
     input, textarea, select {
-        border-color: #ced4da !important;
+        border: 1px solid #ced4da !important;
         box-shadow: none !important;
     }
-    input:focus, textarea:focus {
+
+    /* ป้องกัน Streamlit ใส่กรอบแดงแจ้งเตือนเวลาช่องว่าง */
+    .stTextInput input:focus, .stTextArea textarea:focus {
         border-color: #b19cd9 !important;
-        box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.2) !important;
+        box-shadow: 0 0 0 2px rgba(177, 156, 217, 0.3) !important;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
