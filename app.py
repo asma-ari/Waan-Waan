@@ -2,7 +2,7 @@
 app.py
 แอป Daily Habit Tracker
 - ปฏิทิน FullCalendar
-- รองรับการตั้งค่ากิจกรรมทั้งแบบ "ทำทุก N วัน" และ "ทำเฉพาะวันในสัปดาห์" (เช่น ไปมหาลัยทุกวันจันทร์)
+- รองรับการตั้งค่ากิจกรรมแบบเลือกวันในสัปดาห์ได้หลายวัน (เช่น จันทร์ + ศุกร์)
 - แถบกิจกรรมรูปทรงกล่องสีเทาอ่อน มี Checkbox อยู่ด้านใน
 """
 
@@ -203,7 +203,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v12"
+        key="waan_fullcalendar_v13"
     )
 
     # ---------------------------------------------------------
@@ -258,7 +258,7 @@ with tab_habits:
     # สลับประเภทรูปแบบกิจกรรม
     repeat_type = st.radio(
         "รูปแบบกิจกรรม:",
-        ["ทำตามวันในสัปดาห์ (เช่น ทุกวันจันทร์)", "ทำทุกๆ N วัน (เช่น ทุกๆ 2 วัน)"],
+        ["ทำตามวันในสัปดาห์ (เลือกได้หลายวัน)", "ทำทุกๆ N วัน (เช่น ทุกๆ 2 วัน)"],
         horizontal=True
     )
     
@@ -267,21 +267,13 @@ with tab_habits:
         emoji = c1.text_input("อีโมจิ", value="🎓" if "วันในสัปดาห์" in repeat_type else "✨", max_chars=2)
         name = c2.text_input("ชื่อกิจกรรม เช่น ไปมหาลัย, สระผม, รดน้ำต้นไม้")
         
+        selected_weekdays = []
         if "วันในสัปดาห์" in repeat_type:
-            weekday_choice = st.selectbox(
-                "เลือกวันในสัปดาห์ที่ต้องทำ:",
-                ["วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์", "วันอาทิตย์"]
+            selected_weekdays = st.multiselect(
+                "เลือกวันในสัปดาห์ที่ต้องทำ (เลือกได้มากกว่า 1 วัน):",
+                ["วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์", "วันอาทิตย์"],
+                default=["วันจันทร์", "วันศุกร์"]
             )
-            # หา offset วันถัดไปที่ตรงกับวันที่เลือก
-            weekday_map = {"วันจันทร์": 0, "วันอังคาร": 1, "วันพุธ": 2, "วันพฤหัสบดี": 3, "วันศุกร์": 4, "วันเสาร์": 5, "วันอาทิตย์": 6}
-            target_weekday = weekday_map[weekday_choice]
-            
-            # คำนวณหา วันที่ ของวันในสัปดาห์นั้นถัดไป
-            days_ahead = target_weekday - today.weekday()
-            if days_ahead < 0:
-                days_ahead += 7
-            start_date_input = today + timedelta(days=days_ahead)
-            interval_days = 7  # 7 วันวนซ้ำ 1 ครั้ง
         else:
             c3, c4 = st.columns(2)
             interval_days = c3.number_input("ทำทุกกี่วัน", min_value=1, max_value=365, value=2)
@@ -289,12 +281,27 @@ with tab_habits:
 
         submitted = st.form_submit_button("บันทึกกิจกรรม 💾")
         if submitted:
-            if name.strip():
+            if not name.strip():
+                st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
+            elif "วันในสัปดาห์" in repeat_type:
+                if not selected_weekdays:
+                    st.warning("กรุณาเลือกวันในสัปดาห์อย่างน้อย 1 วันนะ")
+                else:
+                    weekday_map = {"วันจันทร์": 0, "วันอังคาร": 1, "วันพุธ": 2, "วันพฤหัสบดี": 3, "วันศุกร์": 4, "วันเสาร์": 5, "วันอาทิตย์": 6}
+                    for day_name in selected_weekdays:
+                        target_weekday = weekday_map[day_name]
+                        days_ahead = target_weekday - today.weekday()
+                        if days_ahead < 0:
+                            days_ahead += 7
+                        start_d = today + timedelta(days=days_ahead)
+                        # บันทึกเป็นรายกิจกรรมสำหรับแต่ละวันที่เลือก (ทำซ้ำทุก 7 วัน)
+                        db.add_habit(name.strip(), emoji or "✨", 7, start_d)
+                    st.success(f"เพิ่มกิจกรรม '{name}' สำหรับ {', '.join(selected_weekdays)} เรียบร้อยแล้ว!")
+                    st.rerun()
+            else:
                 db.add_habit(name.strip(), emoji or "✨", int(interval_days), start_date_input)
                 st.success(f"เพิ่ม '{name}' เรียบร้อยแล้ว!")
                 st.rerun()
-            else:
-                st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
 
     st.divider()
     st.subheader("📋 รายการกิจกรรมทั้งหมด")
