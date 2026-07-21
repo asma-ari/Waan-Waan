@@ -1,6 +1,6 @@
 """
 app.py
-แอป Daily Habit Tracker (เวอร์ชันมาตรฐาน คลีน โค้ด โหลดเร็ว)
+แอป Daily Habit Tracker (ป๊อปอัพปิดอัตโนมัติหลังบันทึก + โค้ดคลีนโหลดไว)
 """
 
 from datetime import date, datetime, timedelta
@@ -17,9 +17,6 @@ db.init_db()
 # --- Session States ---
 if "user" not in st.session_state:
     st.session_state.user = None
-
-if "editing_habit_id" not in st.session_state:
-    st.session_state.editing_habit_id = None
 
 # -------------------------------------------------------------
 # 🪟 POPUP DIALOGS สำหรับ Login & Sign Up
@@ -122,7 +119,7 @@ with col_logout:
 
 today = date.today()
 
-# 🪟 POPUP DIALOG 1: บันทึกประจำวัน
+# 🪟 POPUP DIALOG 1: บันทึกประจำวัน (กดบันทึกแล้วปิดป๊อปอัปทันที)
 @st.dialog("📝 บันทึกกิจกรรมประจำวัน")
 def open_entry_dialog(selected_d: date):
     st.markdown(f"### 📅 วันที่: **{thai_weekday(selected_d)} {selected_d.strftime('%d/%m/%Y')}**")
@@ -156,7 +153,7 @@ def open_entry_dialog(selected_d: date):
     if st.button("💾 บันทึกเรื่องราว", use_container_width=True, key=f"save_btn_{selected_d}"):
         if note_input.strip():
             db.add_log(user_id, habit_id=None, log_date=selected_d, note=note_input.strip(), completed=False)
-            st.rerun()
+            st.rerun() # บันทึกเสร็จ st.rerun() จะปิดป๊อปอัปและรีเฟรชหน้าจอหลักให้ทันที
         else:
             st.warning("กรุณาพิมพ์ข้อความก่อนบันทึกนะ")
 
@@ -182,7 +179,7 @@ def open_entry_dialog(selected_d: date):
                 st.rerun()
 
 
-# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม
+# 🪟 POPUP DIALOG 2: แก้ไขกิจกรรม (กดบันทึกการแก้ไขแล้วปิดป๊อปอัปทันที)
 @st.dialog("✏️ แก้ไขกิจกรรม")
 def open_edit_habit_dialog(habit):
     st.markdown(f"### แก้ไขกิจกรรม: **{habit['emoji']} {habit['name']}**")
@@ -196,12 +193,10 @@ def open_edit_habit_dialog(habit):
         if weekdays_str == "ONCE":
             current_start = date.fromisoformat(habit["start_date"])
             new_start = st.date_input("วันที่ทำกิจกรรม:", value=current_start)
-            new_interval = 0
             new_w_str = "ONCE"
         elif weekdays_str:
             curr_days = [THAI_WEEKDAYS[int(w)] for w in weekdays_str.split(",") if w.isdigit()]
             new_selected_weekdays = st.multiselect("เลือกวันในสัปดาห์:", THAI_WEEKDAYS, default=curr_days)
-            new_interval = 1
             new_start = today
         else:
             c3, c4 = st.columns(2)
@@ -223,8 +218,7 @@ def open_edit_habit_dialog(habit):
                 else:
                     db.update_habit(habit["id"], user_id, new_name.strip(), new_emoji or "✨", int(new_interval), new_start, "")
                 
-                st.session_state.editing_habit_id = None
-                st.rerun()
+                st.rerun() # บันทึกเสร็จ st.rerun() จะปิดป๊อปอัปนี้ทันที
             else:
                 st.warning("กรุณาใส่ชื่อกิจกรรมด้วยนะ")
 
@@ -232,11 +226,6 @@ def open_edit_habit_dialog(habit):
 # 📌 MAIN TABS
 tab_calendar, tab_habits = st.tabs(["📅 ปฏิทิน", "🔁 ตั้งค่ากิจกรรม"])
 habits = db.get_habits(user_id)
-
-if st.session_state.editing_habit_id:
-    target_h = next((h for h in habits if h["id"] == st.session_state.editing_habit_id), None)
-    if target_h:
-        open_edit_habit_dialog(target_h)
 
 # ================= TAB 1: ปฏิทิน =================
 with tab_calendar:
@@ -309,7 +298,7 @@ with tab_calendar:
         events=events,
         options=calendar_options,
         callbacks=["dateClick", "select"],
-        key="waan_fullcalendar_v23"
+        key="waan_fullcalendar_v24"
     )
 
     st.divider()
@@ -443,8 +432,7 @@ with tab_habits:
             btn1, btn2 = st.columns(2)
             with btn1:
                 if st.button("✏️ แก้ไข", key=f"edit_h_{h['id']}", use_container_width=True):
-                    st.session_state.editing_habit_id = h["id"]
-                    st.rerun()
+                    open_edit_habit_dialog(h) # เปิดป๊อปอัปแก้ไขทันทีเมื่อคลิก
             with btn2:
                 if st.button("🗑️ ลบ", key=f"del_h_{h['id']}", use_container_width=True):
                     db.delete_habit(h["id"], user_id)
